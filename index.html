@@ -849,66 +849,42 @@
     }
 
     async function safeFetch(url, options = {}) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-        try {
-            // Use AllOrigins proxy to bypass CORS for Google Apps Script
-            if (url.includes('script.google.com')) {
-                let proxyUrl;
-                if (options.method === 'POST') {
-                    // For POST requests, convert FormData to URL parameters and use GET
-                    // This is required because AllOrigins proxy doesn't support POST body forwarding
-                    const formData = options.body;
-                    const params = new URLSearchParams();
-                    for (const [key, value] of formData.entries()) {
-                        params.append(key, value);
-                    }
-                    // Google Apps Script can handle both GET and POST for the same endpoint
-                    // We'll append the data as URL parameters
-                    const fullUrl = `${url}?${params.toString()}`;
-                    proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(fullUrl)}`;
-                } else {
-                    proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                }
-
-                const response = await fetch(proxyUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-
-                // Check if the proxied content is HTML (error page) instead of JSON
-                if (data.contents && data.contents.trim().startsWith('<!DOCTYPE') || data.contents.includes('<html>')) {
-                    throw new Error('Google Apps Script returned HTML instead of JSON. This usually means: 1) Web App URL is incorrect, 2) Web App is not deployed, or 3) Web App permissions are not set to "Anyone with the link"');
-                }
-
-                // Create a mock Response object with the proxied content
-                return {
-                    ok: true,
-                    status: 200,
-                    statusText: 'OK',
-                    json: async () => JSON.parse(data.contents),
-                    text: async () => data.contents
-                };
-            } else {
-                // Direct fetch for non-Google Apps Script URLs
-                const response = await fetch(url, { ...options, signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!response.ok) {
-                    const text = await response.text().catch(() => '');
-                    throw new Error(`HTTP ${response.status} ${response.statusText} — ${text.slice(0,200)}`);
-                }
-                return response;
-            }
-        } catch (error) {
-            clearTimeout(timeoutId);
-            const hint = `Failed to fetch. Common causes: \n• Wrong Web App URL or not deployed \n• Web App access not set to "Anyone with the link" (login redirect) \n• Corporate network/extension blocking cross‑site requests`;
-            throw new Error(error.message + "\n" + hint);
-        }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  
+  try {
+    // Try direct fetch
+    const response = await fetch(url, {
+      ...options,
+      mode: 'cors',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`HTTP ${response.status} ${response.statusText} — ${text.slice(0,200)}`);
     }
+    
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    // If it's a CORS error, provide clear instructions
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      throw new Error(
+        `CORS Blocked: Browser security prevents accessing Google Apps Script from localhost.\n\n` +
+        `SOLUTIONS:\n` +
+        `1. Install a CORS browser extension for development\n` +
+        `2. Deploy this HTML to GitHub Pages/Netlify\n` +
+        `3. Use Chrome with: chrome.exe --disable-web-security --user-data-dir="/tmp/chrome_dev"`
+      );
+    }
+    
+    throw error;
+  }
+}
 
     // ======= Contact Lists Management =======
     async function loadContactLists() {
