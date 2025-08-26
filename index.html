@@ -1412,9 +1412,9 @@
 
             if (action === 'sendCampaign') {
                 addLogEntry(`Sending to list: ${listToUse}`);
-                // For campaign sending, we need to simulate progress since we can't get real-time updates
-                updateProgress(1, 100, 'Sending emails...');
+                showProgressModal();
             }
+
 
             const res = await safeFetch(s.webAppUrl, { method: 'POST', body: fd });
             const data = await res.json();
@@ -1423,9 +1423,12 @@
             const resultMsg = `<b>${sanitize(data.status||'OK')}</b>: ${sanitize(data.message||'')}${attachmentInfo}<br><small>Sent to list: <b>${listToUse}</b></small>`;
 
             if (action === 'sendCampaign') {
-                updateProgress(100, 100, 'Campaign completed!');
-                addLogEntry(`Campaign completed successfully!`, 'success');
-                completeProgress(true);
+                if (data.campaignId) {
+                    pollProgress(data.campaignId, listToUse);
+                } else {
+                    addLogEntry("No campaignId returned from backend.", "error");
+                    completeProgress(false);
+                }
             } else {
                 msg('composeMsg', resultMsg);
             }
@@ -1457,6 +1460,45 @@
         document.getElementById('preview').classList.add('hidden');
         msg('composeMsg', 'Cleared.');
     });
+
+
+    async function pollProgress(campaignId, listName) {
+        let done = false;
+        let total = 0;
+
+        // Get total contacts in list
+        try {
+            const res = await fetch(getSettings().webAppUrl + '?action=getListCount&list=' + encodeURIComponent(listName));
+            const data = await res.json();
+            total = data.count || 0;
+        } catch (err) {
+            console.error("Error fetching list count:", err);
+        }
+
+        while (!done) {
+            try {
+                const res = await fetch(getSettings().webAppUrl + '?action=stats');
+                const stats = await res.json();
+
+                const sent = stats.sent || 0;
+                const percent = total > 0 ? Math.min(100, Math.round((sent / total) * 100)) : 0;
+
+                updateProgress(percent, 100, `Sent ${sent} / ${total}`);
+
+                if (percent >= 100) {
+                    addLogEntry("Campaign completed successfully!", "success");
+                    completeProgress(true);
+                    done = true;
+                }
+            } catch (err) {
+                console.error("Polling error:", err);
+                addLogEntry("Error fetching progress: " + err.message, "error");
+            }
+
+            await new Promise(r => setTimeout(r, 3000)); // wait 3s
+        }
+    }
+
 
     // ======= Dashboard =======
     async function loadStats() {
