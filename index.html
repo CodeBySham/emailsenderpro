@@ -1405,7 +1405,7 @@
             if (files.length > 0) {
                 fd.append('attachments', JSON.stringify(files));
                 fd.append('hasAttachments', 'true');
-                console.log('Debug: Sending attachments:', files.map(f => ({ name: f.name, size: f.data ? .length || 0 })));
+                // console.log('Debug: Sending attachments:', files.map(f => ({ name: f.name, size: f.data ? .length || 0 })));
             } else {
                 fd.append('attachments', JSON.stringify([]));
                 fd.append('hasAttachments', 'false');
@@ -1814,3 +1814,4 @@
 </body>
 
 </html>
+
