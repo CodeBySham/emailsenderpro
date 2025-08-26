@@ -452,32 +452,45 @@
     }
 
     /* Progress Modal */
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      backdrop-filter: blur(5px);
-      display: none;
-    }
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
 
-    .modal-content {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 32px;
-      max-width: 500px;
-      width: 90%;
-      max-height: 80vh;
-      overflow-y: auto;
-      box-shadow: var(--shadow-lg);
-    }
+.modal:not(.hidden) {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 32px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+.modal:not(.hidden) .modal-content {
+    transform: translateY(0);
+}
 
     .progress-bar {
       width: 100%;
@@ -874,7 +887,6 @@
             <div id="diagMsg" class="notice" style="margin-top:10px"></div>
         </section>
     </div>
-
     <!-- Progress Modal -->
     <div id="progressModal" class="modal hidden">
         <div class="modal-content">
@@ -894,18 +906,16 @@
             </div>
         </div>
     </div>
-
     <div class="footer">
         <button class="btn" id="btnSaveDraft"><i class="fa-regular fa-bookmark"></i> Save Draft</button>
         <button class="btn" id="btnLoadDraft"><i class="fa-solid fa-book-bookmark"></i> Load Draft</button>
         <button class="btn" id="btnHelp"><i class="fa-regular fa-circle-question"></i> Help</button>
     </div>
-
     <script>
     // ======= CONFIG & STATE =======
-    const STATE = { 
-        contacts: [], 
-        lastImportPreview: [], 
+    const STATE = {
+        contacts: [],
+        lastImportPreview: [],
         trackingChart: null,
         isOnline: false,
         isSending: false,
@@ -939,7 +949,7 @@
             updateConnectionStatus(false);
             return;
         }
-        
+
         try {
             const controller = new AbortController();
             setTimeout(() => controller.abort(), 5000); // 5 second timeout
@@ -1033,7 +1043,7 @@
             const id = t.dataset.tab;
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
-            
+
             // Load dashboard stats when dashboard tab is opened
             if (id === 'dashboard') {
                 loadStats();
@@ -1042,22 +1052,22 @@
     })
 
     // ======= Helpers =======
-    function msg(elId, html) { 
+    function msg(elId, html) {
         const el = document.getElementById(elId);
-        if (el) el.innerHTML = html; 
+        if (el) el.innerHTML = html;
     }
 
     function sanitize(s) { return (s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
     function template(str, data) { return (str || '').replace(/{{(\w+)}}/g, (_, k) => data[k] || ''); }
 
-    function fileToText(file) { 
-        return new Promise((res, rej) => { 
+    function fileToText(file) {
+        return new Promise((res, rej) => {
             const r = new FileReader();
             r.onload = () => res(r.result);
             r.onerror = rej;
-            r.readAsText(file); 
-        }); 
+            r.readAsText(file);
+        });
     }
 
     function readFilesAsBase64(input) {
@@ -1081,25 +1091,25 @@
     async function safeFetch(url, options = {}) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
-        
+
         try {
             const response = await fetch(url, {
                 ...options,
                 mode: 'cors',
                 signal: controller.signal
             });
-            
+
             clearTimeout(timeoutId);
-            
+
             if (!response.ok) {
                 const text = await response.text().catch(() => '');
                 throw new Error(`HTTP ${response.status} ${response.statusText} — ${text.slice(0,200)}`);
             }
-            
+
             return response;
         } catch (error) {
             clearTimeout(timeoutId);
-            
+
             if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
                 throw new Error(
                     `Connection Failed: Cannot reach backend server.\n\n` +
@@ -1109,7 +1119,7 @@
                     `3. Verify permissions are set to "Anyone with the link"`
                 );
             }
-            
+
             throw error;
         }
     }
@@ -1169,7 +1179,7 @@
         if (!listName) return;
         const { webAppUrl } = getSettings();
         const countIndicator = document.getElementById('listCountIndicator');
-        
+
         try {
             const res = await safeFetch(`${webAppUrl}?action=getListCount&list=${encodeURIComponent(listName)}`);
             const data = await res.json();
@@ -1191,7 +1201,7 @@
     document.getElementById('btnParse').addEventListener('click', async () => {
         const f = document.getElementById('fileInput').files[0];
         if (!f) { msg('importSummary', '<b>No file selected.</b>'); return; }
-        
+
         showLoading('btnParse', 'Parsing...');
         let rows = [];
         try {
@@ -1211,19 +1221,19 @@
                 const wb = XLSX.read(data, { type: 'array' });
                 const ws = wb.Sheets[wb.SheetNames[0]];
                 const json = XLSX.utils.sheet_to_json(ws, { defval: '' });
-                json.forEach(r => { 
-                    if (r.email || r.Email) { 
-                        rows.push({ 
-                            email: (r.email || r.Email).toString().trim(), 
-                            name: (r.name || r.Name || '').toString().trim() 
-                        }); 
-                    } 
+                json.forEach(r => {
+                    if (r.email || r.Email) {
+                        rows.push({
+                            email: (r.email || r.Email).toString().trim(),
+                            name: (r.name || r.Name || '').toString().trim()
+                        });
+                    }
                 });
             }
-        } catch (e) { 
-            msg('importSummary', 'Parse error: ' + sanitize(e.message)); 
+        } catch (e) {
+            msg('importSummary', 'Parse error: ' + sanitize(e.message));
             hideLoading('btnParse', 'fa-solid fa-file-import', 'Parse');
-            return; 
+            return;
         }
 
         rows = rows.filter(r => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email));
@@ -1232,7 +1242,7 @@
         msg('importSummary', `Parsed <b>${rows.length}</b> contacts. Showing first 10 below.`);
         const chips = rows.slice(0, 10).map(r => `<span class="chip">${sanitize(r.email)}${r.name?(' · '+sanitize(r.name)):''}</span>`).join('');
         document.getElementById('contactChips').innerHTML = chips;
-        
+
         hideLoading('btnParse', 'fa-solid fa-file-import', 'Parse');
     });
 
@@ -1241,10 +1251,10 @@
         const list = document.getElementById('listName').value || 'Default';
         if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { alert('Set Web App URL in Settings.'); return; }
         if (!STATE.contacts.length) { alert('Nothing to upload. Parse contacts first.'); return; }
-        
+
         showLoading('btnUpload', 'Uploading...');
         msg('importSummary', 'Uploading contacts to backend...');
-        
+
         try {
             const fd = new FormData();
             fd.append('action', 'uploadContacts');
@@ -1293,9 +1303,9 @@
 
     async function send(action) {
         const s = getSettings();
-        if (!s.webAppUrl || s.webAppUrl.includes('WEB_APP_URL_HERE')) { 
-            alert('Set Web App URL in Settings.'); 
-            return; 
+        if (!s.webAppUrl || s.webAppUrl.includes('WEB_APP_URL_HERE')) {
+            alert('Set Web App URL in Settings.');
+            return;
         }
 
         const targetList = document.getElementById('targetList').value;
@@ -1325,7 +1335,7 @@
 
         if (action === 'sendCampaign') {
             STATE.isSending = true;
-            showProgressModal();
+            // showProgressModal();
             payload.useBackendList = true;
             payload.listName = listToUse;
             if (newListName) {
@@ -1348,6 +1358,7 @@
         }
 
         if (action === 'sendCampaign') {
+            showProgressModal();
             addLogEntry('Preparing attachments...');
         } else {
             msg('composeMsg', 'Preparing attachments...');
@@ -1389,12 +1400,12 @@
         try {
             const fd = new FormData();
             Object.entries(payload).forEach(([k, v]) => fd.append(k, typeof v === 'string' ? v : JSON.stringify(v)));
-            
+
             // Properly handle attachments
             if (files.length > 0) {
                 fd.append('attachments', JSON.stringify(files));
                 fd.append('hasAttachments', 'true');
-                console.log('Debug: Sending attachments:', files.map(f => ({name: f.name, size: f.data?.length || 0})));
+                console.log('Debug: Sending attachments:', files.map(f => ({ name: f.name, size: f.data ? .length || 0 })));
             } else {
                 fd.append('attachments', JSON.stringify([]));
                 fd.append('hasAttachments', 'false');
@@ -1408,10 +1419,10 @@
 
             const res = await safeFetch(s.webAppUrl, { method: 'POST', body: fd });
             const data = await res.json();
-            
+
             const attachmentInfo = files.length > 0 ? ` (${files.length} attachment(s))` : '';
             const resultMsg = `<b>${sanitize(data.status||'OK')}</b>: ${sanitize(data.message||'')}${attachmentInfo}<br><small>Sent to list: <b>${listToUse}</b></small>`;
-            
+
             if (action === 'sendCampaign') {
                 updateProgress(100, 100, 'Campaign completed!');
                 addLogEntry(`Campaign completed successfully!`, 'success');
@@ -1419,9 +1430,9 @@
             } else {
                 msg('composeMsg', resultMsg);
             }
-            
+
             updateConnectionStatus(true);
-        } catch (err) { 
+        } catch (err) {
             const errorMsg = sanitize(err.message);
             if (action === 'sendCampaign') {
                 addLogEntry(`Error: ${errorMsg}`, 'error');
@@ -1451,18 +1462,18 @@
     // ======= Dashboard =======
     async function loadStats() {
         const { webAppUrl } = getSettings();
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { 
-            msg('dashMsg', 'Configure Web App URL in Settings first.'); 
-            return; 
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) {
+            msg('dashMsg', 'Configure Web App URL in Settings first.');
+            return;
         }
-        
+
         showLoading('btnRefresh', 'Loading...');
         msg('dashMsg', 'Loading statistics...');
-        
+
         try {
             const res = await safeFetch(`${webAppUrl}?action=stats`);
             const data = await res.json();
-            
+
             document.getElementById('sentCount').textContent = data.sent || 0;
             document.getElementById('openCount').textContent = data.opens || 0;
             document.getElementById('clickCount').textContent = data.clicks || 0;
@@ -1478,31 +1489,30 @@
             const labels = (data.timeline || []).map(d => d.date);
             const opens = (data.timeline || []).map(d => d.opens);
             const clicks = (data.timeline || []).map(d => d.clicks);
-            
+
             // Create chart with proper configuration
-            STATE.trackingChart = new Chart(ctx, { 
-                type: 'line', 
-                data: { 
-                    labels, 
-                    datasets: [
-                        { 
-                            label: 'Opens', 
+            STATE.trackingChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                            label: 'Opens',
                             data: opens,
                             borderColor: '#10b981',
                             backgroundColor: 'rgba(16, 185, 129, 0.1)',
                             tension: 0.4
-                        }, 
-                        { 
-                            label: 'Clicks', 
+                        },
+                        {
+                            label: 'Clicks',
                             data: clicks,
                             borderColor: '#3b82f6',
                             backgroundColor: 'rgba(59, 130, 246, 0.1)',
                             tension: 0.4
                         }
-                    ] 
-                }, 
-                options: { 
-                    responsive: true, 
+                    ]
+                },
+                options: {
+                    responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
@@ -1521,9 +1531,9 @@
                             grid: { color: 'rgba(148, 163, 184, 0.1)' }
                         }
                     }
-                } 
+                }
             });
-            
+
             msg('dashMsg', `✅ Last updated: ${new Date().toLocaleString()}`);
             updateConnectionStatus(true);
         } catch (err) {
@@ -1548,14 +1558,14 @@
 
     document.getElementById('btnExport').addEventListener('click', async () => {
         const { webAppUrl } = getSettings();
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { 
-            msg('dashMsg', 'Configure Web App URL in Settings first.'); 
-            return; 
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) {
+            msg('dashMsg', 'Configure Web App URL in Settings first.');
+            return;
         }
-        
+
         showLoading('btnExport', 'Exporting...');
         msg('dashMsg', 'Exporting data...');
-        
+
         try {
             const res = await safeFetch(`${webAppUrl}?action=exportCSV`);
             const text = await res.text();
@@ -1633,12 +1643,12 @@
         document.getElementById('body').value = d.body || '';
         document.getElementById('targetList').value = d.targetList || '';
         document.getElementById('newListName').value = d.newListName || '';
-        
+
         // Load count for selected list
         if (d.targetList) {
             loadListCount(d.targetList);
         }
-        
+
         alert('Draft loaded successfully.');
     });
 
@@ -1649,14 +1659,14 @@
     // ======= Diagnostics =======
     async function ping() {
         const { webAppUrl } = getSettings();
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { 
-            msg('diagMsg', 'Configure Web App URL in Settings first.'); 
-            return; 
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) {
+            msg('diagMsg', 'Configure Web App URL in Settings first.');
+            return;
         }
-        
+
         showLoading('btnPing', 'Pinging...');
         msg('diagMsg', 'Pinging backend...');
-        
+
         try {
             const res = await safeFetch(`${webAppUrl}?action=ping`);
             const data = await res.json();
@@ -1683,14 +1693,14 @@
 
     document.getElementById('btnTestStats').addEventListener('click', async () => {
         const { webAppUrl } = getSettings();
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { 
-            msg('diagMsg', 'Configure Web App URL in Settings first.'); 
-            return; 
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) {
+            msg('diagMsg', 'Configure Web App URL in Settings first.');
+            return;
         }
-        
+
         showLoading('btnTestStats', 'Testing...');
         msg('diagMsg', 'Testing stats endpoint...');
-        
+
         try {
             const res = await safeFetch(`${webAppUrl}?action=stats`);
             const d = await res.json();
@@ -1718,14 +1728,14 @@
 
     document.getElementById('btnTestUpload').addEventListener('click', async () => {
         const { webAppUrl } = getSettings();
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { 
-            msg('diagMsg', 'Configure Web App URL in Settings first.'); 
-            return; 
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) {
+            msg('diagMsg', 'Configure Web App URL in Settings first.');
+            return;
         }
-        
+
         showLoading('btnTestUpload', 'Testing...');
         msg('diagMsg', 'Testing contact upload...');
-        
+
         try {
             const fd = new FormData();
             fd.append('action', 'uploadContacts');
@@ -1756,10 +1766,10 @@
     document.getElementById('btnTestSendDry').addEventListener('click', async () => {
         const s = getSettings();
         if (!s.senderEmail) { alert('Set Sender Email in Settings.'); return; }
-        
+
         showLoading('btnTestSendDry', 'Testing...');
         msg('diagMsg', 'Dry-running sendTest (no actual email sent; backend logs only)...');
-        
+
         try {
             const fd = new FormData();
             fd.append('action', 'sendTest');
@@ -1775,8 +1785,8 @@
             const data = await res.json();
             msg('diagMsg', 'Dry-run response: ' + sanitize(JSON.stringify(data)));
             updateConnectionStatus(true);
-        } catch (err) { 
-            msg('diagMsg', sanitize(err.message)); 
+        } catch (err) {
+            msg('diagMsg', sanitize(err.message));
             updateConnectionStatus(false);
         } finally {
             hideLoading('btnTestSendDry', 'fa-solid fa-envelope', 'Dry‑Run Send (no email)');
@@ -1785,13 +1795,14 @@
 
     // Auto-load settings + initial checks
     window.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('progressModal').classList.add('hidden');
         if (localStorage.getItem('webAppUrl')) document.getElementById('webAppUrl').value = localStorage.getItem('webAppUrl');
         if (localStorage.getItem('senderEmail')) document.getElementById('senderEmail').value = localStorage.getItem('senderEmail');
-        
+
         // Initial connection check and load data
         checkConnection();
         loadContactLists();
-        
+
         // Load stats if we're on dashboard tab
         setTimeout(() => {
             if (!document.getElementById('dashboard').classList.contains('hidden')) {
