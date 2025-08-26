@@ -70,6 +70,20 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      margin-left: auto;
+      transition: all 0.3s ease;
+    }
+    
+    .status-indicator.online {
+      background: #10b981;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    }
     
     .tabs {
         display: block;
@@ -295,6 +309,17 @@
       box-shadow: 0 0 30px var(--danger-glow), 0 12px 25px rgba(0, 0, 0, 0.4);
     }
     
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btn:disabled:hover {
+      transform: none;
+      box-shadow: none;
+    }
+    
     .chips {
       display: flex;
       gap: 8px;
@@ -317,6 +342,13 @@
       border-color: var(--border-hover);
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .list-count {
+      font-size: 11px;
+      color: #10b981;
+      font-weight: 500;
+      margin-top: 4px;
     }
     
     .footer {
@@ -404,6 +436,85 @@
       box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
     }
 
+    /* Loading Animation */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top: 2px solid #10b981;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Progress Modal */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+      border-radius: 4px;
+      margin: 16px 0;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+
+    .log-container {
+      max-height: 200px;
+      overflow-y: auto;
+      background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+
+    .log-entry {
+      margin: 4px 0;
+      padding: 2px 0;
+    }
+
+    .log-success { color: #10b981; }
+    .log-error { color: #ef4444; }
+    .log-info { color: #60a5fa; }
+
     @keyframes fadeInUp {
       from {
         opacity: 0;
@@ -470,7 +581,7 @@
         font-size: 15px;
       }
       
-      input, textarea, select {
+      .input, textarea, select {
         padding: 16px 20px;
         font-size: 16px;
       }
@@ -599,6 +710,7 @@
 <body>
     <header>
         <h1><i class="fa-solid fa-paper-plane"></i> Mobile Mailer</h1>
+        <div class="status-indicator" id="statusIndicator" title="Connection Status"></div>
         <div class="tabs">
             <button class="tab active" data-tab="compose"><i class="fa-regular fa-pen-to-square"></i>&nbsp;Compose</button>
             <button class="tab" data-tab="contacts"><i class="fa-solid fa-address-book"></i>&nbsp;Contacts</button>
@@ -649,10 +761,10 @@
                     <select id="targetList">
                         <option value="">Loading lists...</option>
                     </select>
+                    <div id="listCountIndicator" class="list-count"></div>
                     <button class="btn" id="btnRefreshLists" style="margin-top: 8px; padding: 8px 12px; font-size: 12px;"><i class="fa-solid fa-rotate"></i> Refresh Lists</button>
                     <div style="font-size: 11px; color: #666; margin-top: 4px;">
                         <strong>Troubleshooting:</strong> If lists fail to load, check:<br>
-                        • <strong>Proxy Enabled:</strong> CORS issues are automatically handled via AllOrigins proxy service<br>
                         • Web App URL is correct and deployed<br>
                         • Web App access set to "Anyone with the link"<br>
                         • No corporate firewall blocking requests
@@ -704,7 +816,6 @@
                 <button class="btn" id="btnUpload"><i class="fa-solid fa-cloud-arrow-up"></i> Upload to Sheets</button>
                 <div style="font-size: 11px; color: #666; margin-top: 8px;">
                     <strong>Upload Issues?</strong> Common causes:<br>
-                    • <strong>Proxy Enabled:</strong> CORS issues are automatically handled via AllOrigins proxy service<br>
                     • <strong>HTML Response Error:</strong> Backend returning HTML instead of JSON - check deployment<br>
                     • <strong>Backend Update Required:</strong> Copy updated backend.js code to Google Apps Script<br>
                     • Web App URL not configured or incorrect<br>
@@ -724,7 +835,9 @@
                 <div class="stat"><i class="fa-solid fa-arrow-up-right-from-square"></i> <span class="num" id="clickCount">0</span> Clicks</div>
                 <div class="stat"><i class="fa-regular fa-circle-xmark"></i> <span class="num" id="bounceCount">0</span> Bounces</div>
             </div>
-            <canvas id="chart" style="width:100%;height:240px;margin-top:12px"></canvas>
+            <div style="width:100%;height:240px;margin:24px 0;position:relative;">
+                <canvas id="chart" style="width:100%;height:100%;"></canvas>
+            </div>
             <div class="row" style="margin-top:8px">
                 <button class="btn" id="btnRefresh"><i class="fa-solid fa-rotate"></i> Refresh</button>
                 <button class="btn" id="btnExport"><i class="fa-solid fa-file-arrow-down"></i> Export CSV</button>
@@ -760,50 +873,155 @@
             <div id="diagMsg" class="notice" style="margin-top:10px"></div>
         </section>
     </div>
+
+    <!-- Progress Modal -->
+    <div id="progressModal" class="modal hidden">
+        <div class="modal-content">
+            <h3 style="margin-top: 0;"><i class="fa-solid fa-paper-plane"></i> Sending Campaign</h3>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill" style="width: 0%;"></div>
+            </div>
+            <div id="progressText" style="text-align: center; margin: 16px 0;">Preparing to send...</div>
+            <div class="log-container" id="logContainer"></div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn" id="closeProgressModal" style="display: none;">
+                    <i class="fa-solid fa-check"></i> Close
+                </button>
+                <button class="btn danger" id="cancelSend" style="display: none;">
+                    <i class="fa-solid fa-stop"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="footer">
         <button class="btn" id="btnSaveDraft"><i class="fa-regular fa-bookmark"></i> Save Draft</button>
         <button class="btn" id="btnLoadDraft"><i class="fa-solid fa-book-bookmark"></i> Load Draft</button>
         <button class="btn" id="btnHelp"><i class="fa-regular fa-circle-question"></i> Help</button>
     </div>
-    <!-- CORS Troubleshooting Section -->
-    <section id="cors-troubleshooting" class="card hidden">
-        <h3>🔧 CORS Troubleshooting</h3>
-        <div style="background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border: 1px solid rgba(239, 68, 68, 0.3); padding: 15px; border-radius: 16px; margin-bottom: 15px;">
-            <h4 style="margin-top: 0; color: #22c55e;">✅ CORS Issue Resolved!</h4>
-            <p><strong>Solution Implemented:</strong> This application now uses the AllOrigins proxy service to automatically bypass CORS restrictions when communicating with Google Apps Script.</p>
-            <h5>How It Works:</h5>
-            <ul>
-                <li>🔄 <strong>Automatic Proxy:</strong> All Google Apps Script requests are routed through AllOrigins proxy</li>
-                <li>🌐 <strong>Works from Localhost:</strong> No need to deploy to a live domain for testing</li>
-                <li>🔒 <strong>Secure:</strong> No browser security flags required</li>
-            </ul>
-            <h5>Backup Solutions (if proxy fails):</h5>
-            <ol>
-                <li><strong>Deploy to a Live Domain:</strong>
-                    <ul>
-                        <li>Upload this HTML file to GitHub Pages, Netlify, etc.</li>
-                        <li>Access via https:// instead of localhost</li>
-                    </ul>
-                </li>
-                <li><strong>Development Workaround:</strong>
-                    <ul>
-                        <li>Start Chrome with: <code>chrome.exe --disable-web-security --user-data-dir="/tmp/chrome_dev"</code></li>
-                        <li>⚠️ Only for development - disables security features</li>
-                    </ul>
-                </li>
-            </ol>
-        </div>
-    </section>
+
     <script>
     // ======= CONFIG & STATE =======
-    const LS = window.localStorage;
-    const STATE = { contacts: [], lastImportPreview: [], trackingChart: null };
+    const STATE = { 
+        contacts: [], 
+        lastImportPreview: [], 
+        trackingChart: null,
+        isOnline: false,
+        isSending: false,
+        sendCancelled: false
+    };
 
     function getSettings() {
         return {
-            webAppUrl: document.getElementById('webAppUrl').value || LS.getItem('webAppUrl') || 'WEB_APP_URL_HERE',
-            senderEmail: document.getElementById('senderEmail').value || LS.getItem('senderEmail') || ''
+            webAppUrl: document.getElementById('webAppUrl').value || localStorage.getItem('webAppUrl') || 'WEB_APP_URL_HERE',
+            senderEmail: document.getElementById('senderEmail').value || localStorage.getItem('senderEmail') || ''
         }
+    }
+
+    // ======= Connection Status =======
+    function updateConnectionStatus(online) {
+        STATE.isOnline = online;
+        const indicator = document.getElementById('statusIndicator');
+        if (online) {
+            indicator.classList.add('online');
+            indicator.title = 'Online - Connected to backend';
+        } else {
+            indicator.classList.remove('online');
+            indicator.title = 'Offline - Cannot connect to backend';
+        }
+    }
+
+    // Test connection periodically
+    async function checkConnection() {
+        const { webAppUrl } = getSettings();
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) {
+            updateConnectionStatus(false);
+            return;
+        }
+        
+        try {
+            const controller = new AbortController();
+            setTimeout(() => controller.abort(), 5000); // 5 second timeout
+            const res = await fetch(`${webAppUrl}?action=ping`, {
+                method: 'GET',
+                signal: controller.signal
+            });
+            updateConnectionStatus(res.ok);
+        } catch (err) {
+            updateConnectionStatus(false);
+        }
+    }
+
+    // Check connection every 30 seconds
+    setInterval(checkConnection, 30000);
+
+    // ======= Progress Modal =======
+    function showProgressModal() {
+        document.getElementById('progressModal').classList.remove('hidden');
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('progressText').textContent = 'Preparing to send...';
+        document.getElementById('logContainer').innerHTML = '';
+        document.getElementById('closeProgressModal').style.display = 'none';
+        document.getElementById('cancelSend').style.display = 'inline-flex';
+        STATE.sendCancelled = false;
+    }
+
+    function hideProgressModal() {
+        document.getElementById('progressModal').classList.add('hidden');
+        STATE.isSending = false;
+    }
+
+    function updateProgress(current, total, message) {
+        const percent = Math.round((current / total) * 100);
+        document.getElementById('progressFill').style.width = `${percent}%`;
+        document.getElementById('progressText').textContent = `${current}/${total} - ${message}`;
+    }
+
+    function addLogEntry(message, type = 'info') {
+        const logContainer = document.getElementById('logContainer');
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${type}`;
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        logContainer.appendChild(entry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function completeProgress(success = true) {
+        document.getElementById('closeProgressModal').style.display = 'inline-flex';
+        document.getElementById('cancelSend').style.display = 'none';
+        if (success) {
+            document.getElementById('progressText').textContent = 'Campaign completed successfully!';
+            addLogEntry('Campaign completed successfully!', 'success');
+        } else {
+            document.getElementById('progressText').textContent = 'Campaign failed or was cancelled.';
+            addLogEntry('Campaign failed or was cancelled.', 'error');
+        }
+    }
+
+    document.getElementById('closeProgressModal').addEventListener('click', hideProgressModal);
+    document.getElementById('cancelSend').addEventListener('click', () => {
+        STATE.sendCancelled = true;
+        addLogEntry('Cancellation requested...', 'error');
+        document.getElementById('cancelSend').textContent = 'Cancelling...';
+    });
+
+    // ======= Loading Helpers =======
+    function showLoading(buttonId, text = '') {
+        const btn = document.getElementById(buttonId);
+        const icon = btn.querySelector('i');
+        if (icon) {
+            icon.className = 'spinner';
+        }
+        if (text) {
+            btn.innerHTML = `<div class="spinner"></div> ${text}`;
+        }
+        btn.disabled = true;
+    }
+
+    function hideLoading(buttonId, originalIcon, originalText) {
+        const btn = document.getElementById(buttonId);
+        btn.innerHTML = `<i class="${originalIcon}"></i> ${originalText}`;
+        btn.disabled = false;
     }
 
     // ======= Tabs =======
@@ -814,21 +1032,32 @@
             const id = t.dataset.tab;
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
+            
+            // Load dashboard stats when dashboard tab is opened
+            if (id === 'dashboard') {
+                loadStats();
+            }
         })
     })
 
     // ======= Helpers =======
-    function msg(elId, html) { const el = document.getElementById(elId);
-        el.innerHTML = html; }
+    function msg(elId, html) { 
+        const el = document.getElementById(elId);
+        if (el) el.innerHTML = html; 
+    }
 
     function sanitize(s) { return (s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
     function template(str, data) { return (str || '').replace(/{{(\w+)}}/g, (_, k) => data[k] || ''); }
 
-    function fileToText(file) { return new Promise((res, rej) => { const r = new FileReader();
+    function fileToText(file) { 
+        return new Promise((res, rej) => { 
+            const r = new FileReader();
             r.onload = () => res(r.result);
             r.onerror = rej;
-            r.readAsText(file); }); }
+            r.readAsText(file); 
+        }); 
+    }
 
     function readFilesAsBase64(input) {
         const files = input.files || [];
@@ -837,7 +1066,7 @@
             tasks.push(new Promise((resolve, reject) => {
                 const fr = new FileReader();
                 fr.onload = () => {
-                    const dataUrl = fr.result; // data:...;base64,XXXX
+                    const dataUrl = fr.result;
                     const base64 = String(dataUrl).split(',')[1] || '';
                     resolve({ name: f.name, mimeType: f.type || 'application/octet-stream', data: base64 });
                 };
@@ -849,61 +1078,59 @@
     }
 
     async function safeFetch(url, options = {}) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
-  
-  try {
-    // Try direct fetch
-    const response = await fetch(url, {
-      ...options,
-      mode: 'cors',
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new Error(`HTTP ${response.status} ${response.statusText} — ${text.slice(0,200)}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
+        try {
+            const response = await fetch(url, {
+                ...options,
+                mode: 'cors',
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                const text = await response.text().catch(() => '');
+                throw new Error(`HTTP ${response.status} ${response.statusText} — ${text.slice(0,200)}`);
+            }
+            
+            return response;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                throw new Error(
+                    `Connection Failed: Cannot reach backend server.\n\n` +
+                    `SOLUTIONS:\n` +
+                    `1. Check Web App URL in Settings\n` +
+                    `2. Ensure Web App is deployed and accessible\n` +
+                    `3. Verify permissions are set to "Anyone with the link"`
+                );
+            }
+            
+            throw error;
+        }
     }
-    
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    
-    // If it's a CORS error, provide clear instructions
-    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-      throw new Error(
-        `CORS Blocked: Browser security prevents accessing Google Apps Script from localhost.\n\n` +
-        `SOLUTIONS:\n` +
-        `1. Install a CORS browser extension for development\n` +
-        `2. Deploy this HTML to GitHub Pages/Netlify\n` +
-        `3. Use Chrome with: chrome.exe --disable-web-security --user-data-dir="/tmp/chrome_dev"`
-      );
-    }
-    
-    throw error;
-  }
-}
 
     // ======= Contact Lists Management =======
     async function loadContactLists() {
         const { webAppUrl } = getSettings();
         const select = document.getElementById('targetList');
+        const countIndicator = document.getElementById('listCountIndicator');
 
         if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE') || webAppUrl.trim() === '') {
             select.innerHTML = '<option value="Default">Default (Configure Web App URL in Settings first)</option>';
+            countIndicator.textContent = '';
             return;
         }
 
-        // Show loading state
+        showLoading('btnRefreshLists', 'Loading...');
         select.innerHTML = '<option value="">Loading lists...</option>';
+        countIndicator.textContent = '';
 
         try {
             const res = await safeFetch(`${webAppUrl}?action=getLists`);
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
             const data = await res.json();
             const lists = data.lists || ['Default'];
 
@@ -911,7 +1138,12 @@
                 select.innerHTML = '<option value="Default">Default (No lists found on backend)</option>';
             } else {
                 select.innerHTML = lists.map(list => `<option value="${sanitize(list)}">${sanitize(list)}</option>`).join('');
+                // Load count for first list
+                if (lists[0]) {
+                    loadListCount(lists[0]);
+                }
             }
+            updateConnectionStatus(true);
         } catch (err) {
             let errorMsg = 'Default (Backend Error: ';
             if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
@@ -924,19 +1156,42 @@
                 errorMsg += 'Connection failed)';
             }
             select.innerHTML = `<option value="Default">${errorMsg}</option>`;
+            countIndicator.textContent = '';
+            updateConnectionStatus(false);
             console.warn('Could not load contact lists from backend:', err.message);
+        } finally {
+            hideLoading('btnRefreshLists', 'fa-solid fa-rotate', 'Refresh Lists');
         }
     }
 
-    document.getElementById('btnRefreshLists').addEventListener('click', loadContactLists);
+    async function loadListCount(listName) {
+        if (!listName) return;
+        const { webAppUrl } = getSettings();
+        const countIndicator = document.getElementById('listCountIndicator');
+        
+        try {
+            const res = await safeFetch(`${webAppUrl}?action=getListCount&list=${encodeURIComponent(listName)}`);
+            const data = await res.json();
+            const count = data.count || 0;
+            countIndicator.textContent = `📧 ${count} contacts in this list`;
+        } catch (err) {
+            countIndicator.textContent = '📧 Unable to load contact count';
+        }
+    }
 
-    // Load contact lists when page loads
-    window.addEventListener('load', loadContactLists);
+    // Update count when list selection changes
+    document.getElementById('targetList').addEventListener('change', (e) => {
+        loadListCount(e.target.value);
+    });
+
+    document.getElementById('btnRefreshLists').addEventListener('click', loadContactLists);
 
     // ======= Contacts Import =======
     document.getElementById('btnParse').addEventListener('click', async () => {
         const f = document.getElementById('fileInput').files[0];
         if (!f) { msg('importSummary', '<b>No file selected.</b>'); return; }
+        
+        showLoading('btnParse', 'Parsing...');
         let rows = [];
         try {
             if (f.name.endsWith('.csv') || f.name.endsWith('.txt')) {
@@ -953,11 +1208,22 @@
             } else if (f.name.endsWith('.xlsx')) {
                 const data = await f.arrayBuffer();
                 const wb = XLSX.read(data, { type: 'array' });
-                const ws = wb.Sheets[wb.SheetNames[0]]; // first sheet
+                const ws = wb.Sheets[wb.SheetNames[0]];
                 const json = XLSX.utils.sheet_to_json(ws, { defval: '' });
-                json.forEach(r => { if (r.email || r.Email) { rows.push({ email: (r.email || r.Email).toString().trim(), name: (r.name || r.Name || '').toString().trim() }); } });
+                json.forEach(r => { 
+                    if (r.email || r.Email) { 
+                        rows.push({ 
+                            email: (r.email || r.Email).toString().trim(), 
+                            name: (r.name || r.Name || '').toString().trim() 
+                        }); 
+                    } 
+                });
             }
-        } catch (e) { msg('importSummary', 'Parse error: ' + sanitize(e.message)); return; }
+        } catch (e) { 
+            msg('importSummary', 'Parse error: ' + sanitize(e.message)); 
+            hideLoading('btnParse', 'fa-solid fa-file-import', 'Parse');
+            return; 
+        }
 
         rows = rows.filter(r => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email));
         STATE.contacts = rows;
@@ -965,6 +1231,8 @@
         msg('importSummary', `Parsed <b>${rows.length}</b> contacts. Showing first 10 below.`);
         const chips = rows.slice(0, 10).map(r => `<span class="chip">${sanitize(r.email)}${r.name?(' · '+sanitize(r.name)):''}</span>`).join('');
         document.getElementById('contactChips').innerHTML = chips;
+        
+        hideLoading('btnParse', 'fa-solid fa-file-import', 'Parse');
     });
 
     document.getElementById('btnUpload').addEventListener('click', async () => {
@@ -972,7 +1240,10 @@
         const list = document.getElementById('listName').value || 'Default';
         if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { alert('Set Web App URL in Settings.'); return; }
         if (!STATE.contacts.length) { alert('Nothing to upload. Parse contacts first.'); return; }
-        msg('importSummary', 'Uploading...');
+        
+        showLoading('btnUpload', 'Uploading...');
+        msg('importSummary', 'Uploading contacts to backend...');
+        
         try {
             const fd = new FormData();
             fd.append('action', 'uploadContacts');
@@ -985,16 +1256,14 @@
             console.log('- First contact:', STATE.contacts[0]);
 
             const res = await safeFetch(webAppUrl, { method: 'POST', body: fd });
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
             const data = await res.json();
 
             console.log('Backend Response:', data);
 
-            msg('importSummary', `Uploaded <b>${data.inserted||0}</b> / ${STATE.contacts.length}. Duplicates skipped: ${data.skipped||0}.`);
+            msg('importSummary', `✅ Uploaded <b>${data.inserted||0}</b> / ${STATE.contacts.length}. Duplicates skipped: ${data.skipped||0}.`);
+            updateConnectionStatus(true);
         } catch (err) {
-            let errorMsg = 'Upload failed: ';
+            let errorMsg = '❌ Upload failed: ';
             if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
                 errorMsg += 'Cannot connect to backend. Check Web App URL and deployment status.';
             } else if (err.message.includes('HTTP 4')) {
@@ -1005,7 +1274,10 @@
                 errorMsg += err.message;
             }
             msg('importSummary', errorMsg);
+            updateConnectionStatus(false);
             console.error('Contact upload error:', err);
+        } finally {
+            hideLoading('btnUpload', 'fa-solid fa-cloud-arrow-up', 'Upload to Sheets');
         }
     });
 
@@ -1020,9 +1292,11 @@
 
     async function send(action) {
         const s = getSettings();
-        if (!s.webAppUrl || s.webAppUrl.includes('WEB_APP_URL_HERE')) { alert('Set Web App URL in Settings.'); return; }
+        if (!s.webAppUrl || s.webAppUrl.includes('WEB_APP_URL_HERE')) { 
+            alert('Set Web App URL in Settings.'); 
+            return; 
+        }
 
-        // Get selected list
         const targetList = document.getElementById('targetList').value;
         const newListName = document.getElementById('newListName').value.trim();
 
@@ -1049,48 +1323,117 @@
         };
 
         if (action === 'sendCampaign') {
-            // For campaign sending, we'll use the target list from backend instead of in-memory contacts
+            STATE.isSending = true;
+            showProgressModal();
             payload.useBackendList = true;
             payload.listName = listToUse;
-            // If creating a new list, indicate this to backend
             if (newListName) {
                 payload.createNewList = 'true';
             }
         } else if (action === 'sendTest') {
             payload.testEmail = document.getElementById('testEmail').value;
+            if (!payload.testEmail) {
+                alert('Please enter a test email address.');
+                return;
+            }
         }
 
-        msg('composeMsg', 'Preparing attachments...');
+        const buttonId = action === 'sendCampaign' ? 'btnSend' : 'btnTest';
+        const originalText = action === 'sendCampaign' ? 'Send Campaign' : 'Send Test';
+        const originalIcon = action === 'sendCampaign' ? 'fa-solid fa-paper-plane' : 'fa-solid fa-vial';
+
+        if (action !== 'sendCampaign') {
+            showLoading(buttonId, action === 'sendCampaign' ? 'Sending...' : 'Testing...');
+        }
+
+        if (action === 'sendCampaign') {
+            addLogEntry('Preparing attachments...');
+        } else {
+            msg('composeMsg', 'Preparing attachments...');
+        }
+
         let files = [];
         const attachmentInput = document.getElementById('attachments');
         if (attachmentInput && attachmentInput.files && attachmentInput.files.length > 0) {
             try {
                 files = await readFilesAsBase64(attachmentInput);
-                msg('composeMsg', `Prepared ${files.length} attachment(s). Sending...`);
+                const attachMsg = `Prepared ${files.length} attachment(s). Sending...`;
+                if (action === 'sendCampaign') {
+                    addLogEntry(attachMsg);
+                } else {
+                    msg('composeMsg', attachMsg);
+                }
             } catch (err) {
-                msg('composeMsg', 'Attachment error: ' + sanitize(err.message));
+                const errorMsg = 'Attachment error: ' + sanitize(err.message);
+                if (action === 'sendCampaign') {
+                    addLogEntry(errorMsg, 'error');
+                    completeProgress(false);
+                } else {
+                    msg('composeMsg', errorMsg);
+                }
+                if (action !== 'sendCampaign') {
+                    hideLoading(buttonId, originalIcon, originalText);
+                }
                 return;
             }
         } else {
-            msg('composeMsg', 'No attachments. Sending...');
+            const noAttachMsg = 'No attachments. Sending...';
+            if (action === 'sendCampaign') {
+                addLogEntry(noAttachMsg);
+            } else {
+                msg('composeMsg', noAttachMsg);
+            }
         }
 
         try {
             const fd = new FormData();
             Object.entries(payload).forEach(([k, v]) => fd.append(k, typeof v === 'string' ? v : JSON.stringify(v)));
+            
+            // Properly handle attachments
             if (files.length > 0) {
-                fd.append('filesJson', JSON.stringify(files));
+                fd.append('attachments', JSON.stringify(files));
                 fd.append('hasAttachments', 'true');
+                console.log('Debug: Sending attachments:', files.map(f => ({name: f.name, size: f.data?.length || 0})));
             } else {
-                fd.append('filesJson', JSON.stringify([]));
+                fd.append('attachments', JSON.stringify([]));
                 fd.append('hasAttachments', 'false');
+            }
+
+            if (action === 'sendCampaign') {
+                addLogEntry(`Sending to list: ${listToUse}`);
+                // For campaign sending, we need to simulate progress since we can't get real-time updates
+                updateProgress(1, 100, 'Sending emails...');
             }
 
             const res = await safeFetch(s.webAppUrl, { method: 'POST', body: fd });
             const data = await res.json();
+            
             const attachmentInfo = files.length > 0 ? ` (${files.length} attachment(s))` : '';
-            msg('composeMsg', `<b>${sanitize(data.status||'OK')}</b>: ${sanitize(data.message||'')}${attachmentInfo}<br><small>Sent to list: <b>${listToUse}</b></small>`);
-        } catch (err) { msg('composeMsg', sanitize(err.message)); }
+            const resultMsg = `<b>${sanitize(data.status||'OK')}</b>: ${sanitize(data.message||'')}${attachmentInfo}<br><small>Sent to list: <b>${listToUse}</b></small>`;
+            
+            if (action === 'sendCampaign') {
+                updateProgress(100, 100, 'Campaign completed!');
+                addLogEntry(`Campaign completed successfully!`, 'success');
+                completeProgress(true);
+            } else {
+                msg('composeMsg', resultMsg);
+            }
+            
+            updateConnectionStatus(true);
+        } catch (err) { 
+            const errorMsg = sanitize(err.message);
+            if (action === 'sendCampaign') {
+                addLogEntry(`Error: ${errorMsg}`, 'error');
+                completeProgress(false);
+            } else {
+                msg('composeMsg', errorMsg);
+            }
+            updateConnectionStatus(false);
+        } finally {
+            if (action !== 'sendCampaign') {
+                hideLoading(buttonId, originalIcon, originalText);
+            }
+        }
     }
 
     document.getElementById('btnTest').addEventListener('click', () => send('sendTest'));
@@ -1099,6 +1442,7 @@
         document.getElementById('subject').value = '';
         document.getElementById('body').value = '';
         document.getElementById('attachments').value = '';
+        document.getElementById('attachmentList').innerHTML = '';
         document.getElementById('preview').classList.add('hidden');
         msg('composeMsg', 'Cleared.');
     });
@@ -1106,28 +1450,83 @@
     // ======= Dashboard =======
     async function loadStats() {
         const { webAppUrl } = getSettings();
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { msg('dashMsg', 'Configure Web App URL in Settings first.'); return; }
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { 
+            msg('dashMsg', 'Configure Web App URL in Settings first.'); 
+            return; 
+        }
+        
+        showLoading('btnRefresh', 'Loading...');
         msg('dashMsg', 'Loading statistics...');
+        
         try {
             const res = await safeFetch(`${webAppUrl}?action=stats`);
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
             const data = await res.json();
+            
             document.getElementById('sentCount').textContent = data.sent || 0;
             document.getElementById('openCount').textContent = data.opens || 0;
             document.getElementById('clickCount').textContent = data.clicks || 0;
             document.getElementById('bounceCount').textContent = data.bounces || 0;
 
-            const ctx = document.getElementById('chart');
+            // Destroy existing chart before creating new one
+            const ctx = document.getElementById('chart').getContext('2d');
+            if (STATE.trackingChart) {
+                STATE.trackingChart.destroy();
+                STATE.trackingChart = null;
+            }
+
             const labels = (data.timeline || []).map(d => d.date);
             const opens = (data.timeline || []).map(d => d.opens);
             const clicks = (data.timeline || []).map(d => d.clicks);
-            if (STATE.trackingChart) STATE.trackingChart.destroy();
-            STATE.trackingChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Opens', data: opens }, { label: 'Clicks', data: clicks }] }, options: { responsive: true, maintainAspectRatio: false } });
-            msg('dashMsg', `Last updated: ${new Date().toLocaleString()}`);
+            
+            // Create chart with proper configuration
+            STATE.trackingChart = new Chart(ctx, { 
+                type: 'line', 
+                data: { 
+                    labels, 
+                    datasets: [
+                        { 
+                            label: 'Opens', 
+                            data: opens,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4
+                        }, 
+                        { 
+                            label: 'Clicks', 
+                            data: clicks,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.4
+                        }
+                    ] 
+                }, 
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#f1f5f9'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        },
+                        y: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        }
+                    }
+                } 
+            });
+            
+            msg('dashMsg', `✅ Last updated: ${new Date().toLocaleString()}`);
+            updateConnectionStatus(true);
         } catch (err) {
-            let errorMsg = 'Stats loading failed: ';
+            let errorMsg = '❌ Stats loading failed: ';
             if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
                 errorMsg += 'Cannot connect to backend. Check Web App URL and deployment status.';
             } else if (err.message.includes('HTTP 4')) {
@@ -1138,19 +1537,26 @@
                 errorMsg += err.message;
             }
             msg('dashMsg', errorMsg);
+            updateConnectionStatus(false);
+        } finally {
+            hideLoading('btnRefresh', 'fa-solid fa-rotate', 'Refresh');
         }
     }
+
     document.getElementById('btnRefresh').addEventListener('click', loadStats);
 
     document.getElementById('btnExport').addEventListener('click', async () => {
         const { webAppUrl } = getSettings();
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { msg('dashMsg', 'Configure Web App URL in Settings first.'); return; }
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { 
+            msg('dashMsg', 'Configure Web App URL in Settings first.'); 
+            return; 
+        }
+        
+        showLoading('btnExport', 'Exporting...');
         msg('dashMsg', 'Exporting data...');
+        
         try {
             const res = await safeFetch(`${webAppUrl}?action=exportCSV`);
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
             const text = await res.text();
             const blob = new Blob([text], { type: 'text/csv' });
             const a = document.createElement('a');
@@ -1158,6 +1564,7 @@
             a.download = 'events.csv';
             a.click();
             msg('dashMsg', 'Export completed successfully.');
+            updateConnectionStatus(true);
         } catch (err) {
             let errorMsg = 'Export failed: ';
             if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
@@ -1170,6 +1577,9 @@
                 errorMsg += err.message;
             }
             msg('dashMsg', errorMsg);
+            updateConnectionStatus(false);
+        } finally {
+            hideLoading('btnExport', 'fa-solid fa-file-arrow-down', 'Export CSV');
         }
     });
 
@@ -1177,9 +1587,10 @@
     document.getElementById('btnSaveSettings').addEventListener('click', () => {
         const url = document.getElementById('webAppUrl').value.trim();
         const sender = document.getElementById('senderEmail').value.trim();
-        if (url) LS.setItem('webAppUrl', url);
-        if (sender) LS.setItem('senderEmail', sender);
-        alert('Saved.');
+        if (url) localStorage.setItem('webAppUrl', url);
+        if (sender) localStorage.setItem('senderEmail', sender);
+        alert('Settings saved successfully!');
+        checkConnection(); // Check connection after saving new URL
     });
 
     // Attachment display
@@ -1197,63 +1608,59 @@
     });
 
     document.getElementById('btnSaveDraft').addEventListener('click', () => {
-        const campaignName = document.getElementById('campaignName');
-        const fromName = document.getElementById('fromName');
-        const subject = document.getElementById('subject');
-        const msgType = document.getElementById('msgType');
-        const utm = document.getElementById('utm');
-        const body = document.getElementById('body');
-        const targetList = document.getElementById('targetList');
-        const newListName = document.getElementById('newListName');
         const draft = {
-            campaignName: campaignName.value,
-            fromName: fromName.value,
-            subject: subject.value,
-            msgType: msgType.value,
-            utm: utm.value,
-            body: body.value,
-            targetList: targetList.value,
-            newListName: newListName.value
+            campaignName: document.getElementById('campaignName').value,
+            fromName: document.getElementById('fromName').value,
+            subject: document.getElementById('subject').value,
+            msgType: document.getElementById('msgType').value,
+            utm: document.getElementById('utm').value,
+            body: document.getElementById('body').value,
+            targetList: document.getElementById('targetList').value,
+            newListName: document.getElementById('newListName').value
         };
-        LS.setItem('draft', JSON.stringify(draft));
+        localStorage.setItem('draft', JSON.stringify(draft));
         alert('Draft saved locally.');
     });
+
     document.getElementById('btnLoadDraft').addEventListener('click', () => {
-        const d = JSON.parse(LS.getItem('draft') || '{}');
-        const campaignName = document.getElementById('campaignName');
-        const fromName = document.getElementById('fromName');
-        const subject = document.getElementById('subject');
-        const msgType = document.getElementById('msgType');
-        const utm = document.getElementById('utm');
-        const body = document.getElementById('body');
-        const targetList = document.getElementById('targetList');
-        const newListName = document.getElementById('newListName');
-        campaignName.value = d.campaignName || '';
-        fromName.value = d.fromName || '';
-        subject.value = d.subject || '';
-        msgType.value = d.msgType || 'plain';
-        utm.value = d.utm || 'on';
-        body.value = d.body || '';
-        targetList.value = d.targetList || '';
-        newListName.value = d.newListName || '';
+        const d = JSON.parse(localStorage.getItem('draft') || '{}');
+        document.getElementById('campaignName').value = d.campaignName || '';
+        document.getElementById('fromName').value = d.fromName || '';
+        document.getElementById('subject').value = d.subject || '';
+        document.getElementById('msgType').value = d.msgType || 'plain';
+        document.getElementById('utm').value = d.utm || 'on';
+        document.getElementById('body').value = d.body || '';
+        document.getElementById('targetList').value = d.targetList || '';
+        document.getElementById('newListName').value = d.newListName || '';
+        
+        // Load count for selected list
+        if (d.targetList) {
+            loadListCount(d.targetList);
+        }
+        
+        alert('Draft loaded successfully.');
     });
 
     document.getElementById('btnHelp').addEventListener('click', () => {
-        alert('Tips:\n• Import contacts, then Upload to Sheets.\n• Use {{name}} placeholder.\n• HTML emails use full HTML; plain sends as text.\n• Test send before running a campaign.\n• Dashboard pulls from Sheets via backend.');
+        alert('Tips:\n• Import contacts, then Upload to Sheets.\n• Use {{name}} placeholder.\n• HTML emails use full HTML; plain sends as text.\n• Test send before running a campaign.\n• Dashboard pulls from Sheets via backend.\n• Green indicator = Online, Red = Offline');
     });
 
     // ======= Diagnostics =======
     async function ping() {
         const { webAppUrl } = getSettings();
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { msg('diagMsg', 'Configure Web App URL in Settings first.'); return; }
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { 
+            msg('diagMsg', 'Configure Web App URL in Settings first.'); 
+            return; 
+        }
+        
+        showLoading('btnPing', 'Pinging...');
         msg('diagMsg', 'Pinging backend...');
+        
         try {
             const res = await safeFetch(`${webAppUrl}?action=ping`);
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
             const data = await res.json();
-            msg('diagMsg', 'Ping OK: ' + sanitize(JSON.stringify(data)));
+            msg('diagMsg', 'Ping successful: ' + sanitize(JSON.stringify(data)));
+            updateConnectionStatus(true);
         } catch (err) {
             let errorMsg = 'Ping failed: ';
             if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
@@ -1266,22 +1673,30 @@
                 errorMsg += err.message;
             }
             msg('diagMsg', errorMsg);
+            updateConnectionStatus(false);
+        } finally {
+            hideLoading('btnPing', 'fa-solid fa-plug', 'Ping');
         }
     }
     document.getElementById('btnPing').addEventListener('click', ping);
 
     document.getElementById('btnTestStats').addEventListener('click', async () => {
         const { webAppUrl } = getSettings();
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { msg('diagMsg', 'Configure Web App URL in Settings first.'); return; }
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { 
+            msg('diagMsg', 'Configure Web App URL in Settings first.'); 
+            return; 
+        }
+        
+        showLoading('btnTestStats', 'Testing...');
         msg('diagMsg', 'Testing stats endpoint...');
+        
         try {
             const res = await safeFetch(`${webAppUrl}?action=stats`);
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
             const d = await res.json();
             const ok = typeof d.sent === 'number' && Array.isArray(d.timeline);
-            msg('diagMsg', ok ? 'Stats shape OK.' : 'Stats shape unexpected: ' + sanitize(JSON.stringify(d)));
+            const result = ok ? 'Stats structure is valid.' : 'Stats structure is invalid: ' + sanitize(JSON.stringify(d));
+            msg('diagMsg', result);
+            updateConnectionStatus(true);
         } catch (err) {
             let errorMsg = 'Stats test failed: ';
             if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
@@ -1294,24 +1709,31 @@
                 errorMsg += err.message;
             }
             msg('diagMsg', errorMsg);
+            updateConnectionStatus(false);
+        } finally {
+            hideLoading('btnTestStats', 'fa-solid fa-chart-line', 'Stats Shape');
         }
     });
 
     document.getElementById('btnTestUpload').addEventListener('click', async () => {
         const { webAppUrl } = getSettings();
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { msg('diagMsg', 'Configure Web App URL in Settings first.'); return; }
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { 
+            msg('diagMsg', 'Configure Web App URL in Settings first.'); 
+            return; 
+        }
+        
+        showLoading('btnTestUpload', 'Testing...');
         msg('diagMsg', 'Testing contact upload...');
+        
         try {
             const fd = new FormData();
             fd.append('action', 'uploadContacts');
             fd.append('list', 'Diagnostics');
             fd.append('contacts', JSON.stringify([{ email: `test+${Date.now()}@example.com`, name: 'Diag User' }]));
             const res = await safeFetch(webAppUrl, { method: 'POST', body: fd });
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
             const data = await res.json();
-            msg('diagMsg', 'Upload test OK: ' + sanitize(JSON.stringify(data)));
+            msg('diagMsg', 'Upload test successful: ' + sanitize(JSON.stringify(data)));
+            updateConnectionStatus(true);
         } catch (err) {
             let errorMsg = 'Upload test failed: ';
             if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
@@ -1324,13 +1746,19 @@
                 errorMsg += err.message;
             }
             msg('diagMsg', errorMsg);
+            updateConnectionStatus(false);
+        } finally {
+            hideLoading('btnTestUpload', 'fa-solid fa-user-plus', 'Upload One Contact');
         }
     });
 
     document.getElementById('btnTestSendDry').addEventListener('click', async () => {
         const s = getSettings();
         if (!s.senderEmail) { alert('Set Sender Email in Settings.'); return; }
-        msg('diagMsg', 'Dry‑running sendTest (no actual email sent; backend logs only)...');
+        
+        showLoading('btnTestSendDry', 'Testing...');
+        msg('diagMsg', 'Dry-running sendTest (no actual email sent; backend logs only)...');
+        
         try {
             const fd = new FormData();
             fd.append('action', 'sendTest');
@@ -1341,18 +1769,34 @@
             fd.append('msgType', 'plain');
             fd.append('testEmail', 'noreply@example.com');
             fd.append('utm', 'off');
-            fd.append('filesJson', JSON.stringify([]));
+            fd.append('attachments', JSON.stringify([]));
             const res = await safeFetch(s.webAppUrl, { method: 'POST', body: fd });
             const data = await res.json();
-            msg('diagMsg', 'Dry‑run response: ' + sanitize(JSON.stringify(data)));
-        } catch (err) { msg('diagMsg', sanitize(err.message)); }
+            msg('diagMsg', 'Dry-run response: ' + sanitize(JSON.stringify(data)));
+            updateConnectionStatus(true);
+        } catch (err) { 
+            msg('diagMsg', sanitize(err.message)); 
+            updateConnectionStatus(false);
+        } finally {
+            hideLoading('btnTestSendDry', 'fa-solid fa-envelope', 'Dry‑Run Send (no email)');
+        }
     });
 
-    // Auto-load settings + initial stats
+    // Auto-load settings + initial checks
     window.addEventListener('DOMContentLoaded', () => {
-        if (LS.getItem('webAppUrl')) document.getElementById('webAppUrl').value = LS.getItem('webAppUrl');
-        if (LS.getItem('senderEmail')) document.getElementById('senderEmail').value = LS.getItem('senderEmail');
-        loadStats();
+        if (localStorage.getItem('webAppUrl')) document.getElementById('webAppUrl').value = localStorage.getItem('webAppUrl');
+        if (localStorage.getItem('senderEmail')) document.getElementById('senderEmail').value = localStorage.getItem('senderEmail');
+        
+        // Initial connection check and load data
+        checkConnection();
+        loadContactLists();
+        
+        // Load stats if we're on dashboard tab
+        setTimeout(() => {
+            if (!document.getElementById('dashboard').classList.contains('hidden')) {
+                loadStats();
+            }
+        }, 1000);
     });
     </script>
 </body>
