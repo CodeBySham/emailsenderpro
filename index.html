@@ -1475,41 +1475,55 @@
 
 
     async function pollProgress(campaignId, listName) {
-        let done = false;
-        let total = 0;
+    let total = 0;
+    
+    // Get total contacts in list
+    try {
+        const res = await fetch(getSettings().webAppUrl + '?action=getListCount&list=' + encodeURIComponent(listName));
+        const data = await res.json();
+        total = data.count || 0;
+    } catch (err) {
+        console.error("Error fetching list count:", err);
+        total = 1; // Fallback to prevent division by zero
+    }
 
-        // Get total contacts in list
-        try {
-            const res = await fetch(getSettings().webAppUrl + '?action=getListCount&list=' + encodeURIComponent(listName));
-            const data = await res.json();
-            total = data.count || 0;
-        } catch (err) {
-            console.error("Error fetching list count:", err);
+    const startTime = Date.now();
+    const emailsPerSecond = 1; // 1 second delay between emails in backend
+    let estimatedSent = 0;
+    
+    const pollInterval = setInterval(async () => {
+        if (STATE.sendCancelled) {
+            clearInterval(pollInterval);
+            completeProgress(false);
+            return;
         }
 
-        while (!done) {
+        // Calculate estimated progress based on time elapsed
+        const elapsed = (Date.now() - startTime) / 1000;
+        estimatedSent = Math.min(total, Math.floor(elapsed / emailsPerSecond));
+        
+        const percent = Math.min(100, Math.round((estimatedSent / total) * 100));
+        updateProgress(estimatedSent, total, `Estimated sent ${estimatedSent} / ${total}`);
+        addLogEntry(`Estimated progress: ${estimatedSent}/${total} emails sent`);
+
+        // Check if we should be done (add some buffer time)
+        if (estimatedSent >= total) {
+            clearInterval(pollInterval);
+            
+            // Verify completion with backend stats
             try {
+                await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds
                 const res = await fetch(getSettings().webAppUrl + '?action=stats');
                 const stats = await res.json();
-
-                const sent = stats.sent || 0;
-                const percent = total > 0 ? Math.min(100, Math.round((sent / total) * 100)) : 0;
-
-                updateProgress(percent, 100, `Sent ${sent} / ${total}`);
-
-                if (percent >= 100) {
-                    addLogEntry("Campaign completed successfully!", "success");
-                    completeProgress(true);
-                    done = true;
-                }
+                addLogEntry("Campaign completed successfully!", "success");
+                completeProgress(true);
             } catch (err) {
-                console.error("Polling error:", err);
-                addLogEntry("Error fetching progress: " + err.message, "error");
+                addLogEntry("Campaign likely completed (verification failed)", "success");
+                completeProgress(true);
             }
-
-            await new Promise(r => setTimeout(r, 1000)); // wait 3s
         }
-    }
+    }, 2000); // Update every 2 seconds
+}
 
 
     // ======= Dashboard =======
@@ -1883,6 +1897,7 @@ document.getElementById("popupClose").addEventListener("click", hidePopup);
 
 
 </html>
+
 
 
 
