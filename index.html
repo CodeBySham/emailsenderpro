@@ -1412,15 +1412,19 @@
             const fd = new FormData();
             Object.entries(payload).forEach(([k, v]) => fd.append(k, typeof v === 'string' ? v : JSON.stringify(v)));
 
-            // Properly handle attachments
-            if (files.length > 0) {
-                fd.append('attachments', JSON.stringify(files));
-                fd.append('hasAttachments', 'true');
-                // console.log('Debug: Sending attachments:', files.map(f => ({ name: f.name, size: f.data ? .length || 0 })));
-            } else {
-                fd.append('attachments', JSON.stringify([]));
-                fd.append('hasAttachments', 'false');
-            }
+           // FIXED: Use the correct parameter names that backend expects
+    if (files.length > 0) {
+        fd.append('filesJson', JSON.stringify(files));  // Changed from 'attachments' to 'filesJson'
+        fd.append('files', JSON.stringify(files));       // Also add 'files' for direct access
+        console.log('Debug: Sending attachments:', files.map(f => ({ 
+            name: f.name, 
+            mimeType: f.mimeType, 
+            dataLength: f.data ? f.data.length : 0 
+        })));
+    } else {
+        fd.append('filesJson', JSON.stringify([]));
+        fd.append('files', JSON.stringify([]));
+    }
 
             if (action === 'sendCampaign') {
                 addLogEntry(`Sending to list: ${listToUse}`);
@@ -1897,6 +1901,7 @@ document.getElementById("popupClose").addEventListener("click", hidePopup);
 
 
 </html>
+
 
 
 
