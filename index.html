@@ -718,10 +718,41 @@
          padding: 40px;
        }
      }
+        .modal {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.5);
+  z-index:9999;
+}
+.modal.hidden { display:none; }
+.modal-content {
+  background:#fff;
+  border-radius:12px;
+  padding:20px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.2);
+  animation:popIn 0.25s ease;
+}
+@keyframes popIn {
+  from { transform:scale(0.9); opacity:0; }
+  to { transform:scale(1); opacity:1; }
+}
+
   </style>
 </head>
 
 <body>
+    <!-- Popup Modal -->
+<div id="popupModal" class="modal hidden">
+  <div class="modal-content" style="max-width:400px;text-align:center;">
+    <h3 id="popupTitle" style="margin:0 0 10px 0;font-size:18px;"></h3>
+    <div id="popupMessage" style="margin-bottom:20px;font-size:14px;color:#444;"></div>
+    <button class="btn" id="popupClose"><i class="fa-solid fa-check"></i> OK</button>
+  </div>
+</div>
+
     <header>
         <h1><i class="fa-solid fa-paper-plane"></i> Mobile Mailer</h1>
         <div class="status-indicator" id="statusIndicator" title="Connection Status"></div>
@@ -1249,8 +1280,8 @@
     document.getElementById('btnUpload').addEventListener('click', async () => {
         const { webAppUrl } = getSettings();
         const list = document.getElementById('listName').value || 'Default';
-        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { alert('Set Web App URL in Settings.'); return; }
-        if (!STATE.contacts.length) { alert('Nothing to upload. Parse contacts first.'); return; }
+        if (!webAppUrl || webAppUrl.includes('WEB_APP_URL_HERE')) { showPopup('Set Web App URL in Settings.', 'Error'); return; }
+        if (!STATE.contacts.length) { showPopup('Nothing to upload. Parse contacts first.', 'Contacts'); return; }
 
         showLoading('btnUpload', 'Uploading...');
         msg('importSummary', 'Uploading contacts to backend...');
@@ -1304,7 +1335,7 @@
     async function send(action) {
         const s = getSettings();
         if (!s.webAppUrl || s.webAppUrl.includes('WEB_APP_URL_HERE')) {
-            alert('Set Web App URL in Settings.');
+            showPopup('Set Web App URL in Settings.', 'Missing Configuration');
             return;
         }
 
@@ -1317,7 +1348,7 @@
         } else if (targetList) {
             listToUse = targetList;
         } else {
-            alert('Please select a contact list or enter a new list name.');
+            showPopup('Please select a contact list or enter a new list name.', 'Emails Missing');
             return;
         }
 
@@ -1343,7 +1374,7 @@
         } else if (action === 'sendTest') {
             payload.testEmail = document.getElementById('testEmail').value;
             if (!payload.testEmail) {
-                alert('Please enter a test email address.');
+                showPopup('Please enter a test email address.', 'Validation Error');
                 return;
             }
         }
@@ -1641,7 +1672,7 @@
         const sender = document.getElementById('senderEmail').value.trim();
         if (url) localStorage.setItem('webAppUrl', url);
         if (sender) localStorage.setItem('senderEmail', sender);
-        alert('Settings saved successfully!');
+        showPopup('Settings saved successfully!', 'Success');
         checkConnection(); // Check connection after saving new URL
     });
 
@@ -1671,7 +1702,8 @@
             newListName: document.getElementById('newListName').value
         };
         localStorage.setItem('draft', JSON.stringify(draft));
-        alert('Draft saved locally.');
+        showPopup('Draft saved locally.', 'Success');
+
     });
 
     document.getElementById('btnLoadDraft').addEventListener('click', () => {
@@ -1690,11 +1722,14 @@
             loadListCount(d.targetList);
         }
 
-        alert('Draft loaded successfully.');
+        showPopup('Draft loaded successfully.', 'Success');
+
     });
 
     document.getElementById('btnHelp').addEventListener('click', () => {
-        alert('Tips:\n• Import contacts, then Upload to Sheets.\n• Use {{name}} placeholder.\n• HTML emails use full HTML; plain sends as text.\n• Test send before running a campaign.\n• Dashboard pulls from Sheets via backend.\n• Green indicator = Online, Red = Offline');
+
+        showPopup('• Import contacts, then Upload to Sheets.\n• Use {{name}} placeholder.\n• HTML emails use full HTML; plain sends as text.\n• Test send before running a campaign.\n• Dashboard pulls from Sheets via backend.\n• Green indicator = Online, Red = Offline', 'Tips');
+
     });
 
     // ======= Diagnostics =======
@@ -1806,7 +1841,7 @@
 
     document.getElementById('btnTestSendDry').addEventListener('click', async () => {
         const s = getSettings();
-        if (!s.senderEmail) { alert('Set Sender Email in Settings.'); return; }
+        if (!s.senderEmail) { showPopup('Set Sender Email in Settings.', 'Error'); return; }
 
         showLoading('btnTestSendDry', 'Testing...');
         msg('diagMsg', 'Dry-running sendTest (no actual email sent; backend logs only)...');
@@ -1851,7 +1886,19 @@
             }
         }, 1000);
     });
+
+        function showPopup(message, title = "Notice") {
+  document.getElementById("popupTitle").textContent = title;
+  document.getElementById("popupMessage").innerHTML = message;
+  document.getElementById("popupModal").classList.remove("hidden");
+}
+function hidePopup() {
+  document.getElementById("popupModal").classList.add("hidden");
+}
+document.getElementById("popupClose").addEventListener("click", hidePopup);
+
     </script>
 </body>
+
 
 </html>
