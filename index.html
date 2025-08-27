@@ -995,7 +995,7 @@
     }
 
     // Check connection every 30 seconds
-    setInterval(checkConnection, 30000);
+    setInterval(checkConnection, 1000);
 
     // ======= Progress Modal =======
     function showProgressModal() {
@@ -1526,7 +1526,7 @@
                 addLogEntry("Error fetching progress: " + err.message, "error");
             }
 
-            await new Promise(r => setTimeout(r, 3000)); // wait 3s
+            await new Promise(r => setTimeout(r, 1000)); // wait 3s
         }
     }
 
@@ -1902,3 +1902,4 @@ document.getElementById("popupClose").addEventListener("click", hidePopup);
 
 
 </html>
+
